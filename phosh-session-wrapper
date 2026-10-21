@@ -1,0 +1,34 @@
+#!/bin/sh
+
+unset DISPLAY
+export WAYLAND_DISPLAY=wayland-0
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Phosh
+export XDG_SESSION_DESKTOP=phosh
+export GDK_BACKEND=wayland
+export QT_QPA_PLATFORM=wayland
+export GTK_IM_MODULE=wayland
+export QT_IM_MODULE=wayland
+# Work around the Intel/crocus renderer path that is causing Phoc/Phosh
+# to terminate with Wayland protocol error 71 during startup.
+export WLR_RENDERER=pixman
+export WLR_NO_HARDWARE_CURSORS=1
+
+# Let the Cage greeter finish releasing the DRM device before Phoc claims it.
+sleep 2
+
+if [ "${1:-}" = "--test" ]; then
+    # Headless smoke test: do not claim the real DRM device or input devices.
+    export WLR_BACKENDS=headless
+    export WLR_HEADLESS_OUTPUTS=1
+    export WLR_LIBINPUT_NO_DEVICES=1
+    exec /usr/bin/timeout --foreground 20s /usr/bin/phosh-session
+fi
+
+dbus-update-activation-environment --systemd \
+  DISPLAY WAYLAND_DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP \
+  XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM GTK_IM_MODULE QT_IM_MODULE \
+  WLR_RENDERER WLR_NO_HARDWARE_CURSORS \
+  2>/dev/null || true
+
+exec /usr/bin/phosh-session
